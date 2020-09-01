@@ -75,6 +75,14 @@ This key sets the amount of retries after a server error occurred.
 If the value is set to `-1`, infinite retries will be executed.  
 #### `mode:` [Integer]  
 This key currently can only be an integer and defines the wait time in seconds until the local IP address will be checked again for an update.  
+## Logging  
+dync stores it's log file under `/var/log/dync`. The used format was kept relatively simple, and an entry looks like this:  
+`[2020-10-05 11:05:19 / INFO] @ 120419(Server) : A sample log message was sent.`  
+* `2020-10-05 11:05:19`: time of occurrence  
+* `INFO`: verbosity level  
+* `120419`: PID of the logging process  
+* `Server`: thread name (equals to instance name)  
+* `A sample log message was sent.`: log message  
 ## Notes  
 ### SocketProvider implementation  
 A short sample implementation to provide the current IP address over a socket can be found under `./sample/socket_provider.py`.  
