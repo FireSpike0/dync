@@ -5,6 +5,37 @@ A simple DynDNS client.
 | Protocol name | Specification URL                       | Internal name | Maximal hosts |  
 | ------------- | --------------------------------------- | ------------- | -------------:|  
 | DynDNS2       | https://help.dyn.com/remote-access-api/ | dyndns2       | 20            |  
+## Command-line arguments  
+Common layout: `dync [global parameters] [module] [module-specific parameters]`  
+### Global parameters  
+| Name | Shorthand | Longhand      | Type         | Value                                             | Default          | Mandatory | Description                             | Example                    |  
+| ---- | --------- | ------------- | ------------ | ------------------------------------------------- | ---------------- | --------- | --------------------------------------- | -------------------------- |  
+|      | `-v`      | `--verbosity` | Single-value | {`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`} | `INFO`           | No        | Sets the verbosity level of the logger. | `--verbosity INFO`         |  
+|      | `-c`      | `--config`    | Single-value | Absolute filepath                                 | `/etc/dync.yaml` | No        | Changes the used configuration file.    | `--config /root/dync.yaml` |  
+### Modules  
+#### `app`  
+The `app` module is responsible for the execution of dync as app.  
+Currently, it can be only used to start dync as app. The `command` parameter is mandatory to ensure compatibility with further versions.  
+| Name      | Shorthand | Longhand | Type         | Value   | Default          | Mandatory | Description                                          | Example         |  
+| --------- | --------- | -------- | ------------ | ------- | ---------------- | --------- | ---------------------------------------------------- | --------------- |  
+| `command` |           |          | Single-value | `start` |                  | Yes       | Defines the action / command to be executed by dync. | `... app start` |  
+#### `daemon`  
+The `daemon` module handles the execution as daemon.  
+Please note, that dync only allows one daemonized process simultaneously.  
+| Name      | Shorthand | Longhand | Type         | Value                        | Default          | Mandatory | Description                                          | Example              |  
+| --------- | --------- | -------- | ------------ | ---------------------------- | ---------------- | --------- | ---------------------------------------------------- | -------------------- |  
+| `command` |           |          | Single-value | {`start`, `stop`, `restart`} |                  | Yes       | Defines the action / command to be executed by dync. | `... daemon restart` |  
+#### `version`  
+The `version` module shows the version information.  
+This module has no parameters at all.  
+| Name | Shorthand | Longhand | Type | Value | Default | Mandatory | Description | Example |  
+| ---- | --------- | -------- | ---- | ----- | ------- | --------- | ----------- | ------- |  
+#### `help`  
+The `help` module prints the help of a specified module.  
+| Name     | Shorthand | Longhand | Type         | Value                                        | Default | Mandatory | Description                | Example           |  
+| -------- | --------- | -------- | ------------ | -------------------------------------------- | ------- | --------- | -------------------------- | ----------------- |  
+| `target` |           |          | Single-value | {`main`, `app`, `daemon`, `version`, `help`} | `help`  | No        | Selects a specific module. | `... help daemon` |  
+A note regarding the `target` parameter: The value `main` refers to the global options.  
 ## Configuration  
 dync uses PyYaml (see `dependencies.yml`) to parse the configuration file. All yaml specific syntax rules supported by PyYaml can be used here, provided the values are still evaluable for the program.  
 ### `instance:` [List]  

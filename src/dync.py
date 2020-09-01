@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 import socket as sck
 import select
 import requests
+import platform
+from argparse import ArgumentParser
 
 
 class AddressProvider(ABC):
@@ -534,3 +536,83 @@ class dyncDaemon(dyncBase):
     def restart(self):
         self.stop()
         self.start()
+
+
+class Platform():
+    CONFIGFILE = None
+    PIDFILE = None
+
+    @staticmethod
+    def unix():
+        Platform.CONFIGFILE = '/etc/{:}.yaml'.format(dyncBase.NAME)
+        Platform.PIDFILE = '/run/{:}.pid'.format(dyncBase.NAME)
+
+    @staticmethod
+    def windows():
+        Platform.CONFIGFILE = '{:}\\{:}.yaml'.format(os.path.dirname(os.path.realpath(__file__)), dyncBase.NAME)
+
+    @staticmethod
+    def unknown():
+        Platform.unix()
+
+
+if __name__ == "__main__":
+    system = platform.system().lower()
+    if system in ['linux', 'freebsd']:
+        Platform.unix()
+    elif system == 'windows':
+        Platform.windows()
+    else:
+        Platform.unknown()
+
+
+    main_parser = ArgumentParser(
+        prog=dyncBase.NAME,
+        description='A simple DynDNS client written in Python 3. Visit https://github.com/FireSpike0/dync for more information.',
+        add_help=False
+    )
+
+    main_parser.add_argument('-v', '--verbosity', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help='set the log verbosity')
+    main_parser.add_argument('-c', '--config', default=Platform.CONFIGFILE, help='use a custom configuration')
+
+    subparsers = main_parser.add_subparsers(title='modules', dest='module', required=True)
+
+    app_parser = subparsers.add_parser('app', prog='{:} app'.format(dyncBase.NAME), description='manage the execution as app', add_help=False)
+    app_parser.add_argument('command', choices=['start'], help='command to execute')
+
+    daemon_parser = subparsers.add_parser('daemon', prog='{:} daemon'.format(dyncBase.NAME), description='manage the execution as daemon', add_help=False)
+    daemon_parser.add_argument('command', choices=['start', 'stop', 'restart'], help='command to execute')
+
+    version_parser = subparsers.add_parser('version', prog='{:} version'.format(dyncBase.NAME), description='show version details', add_help=False)
+
+    help_parser = subparsers.add_parser('help', prog='{:} help'.format(dyncBase.NAME), description='show help about a module', add_help=False)
+    help_parser.add_argument('target', nargs='?', default='help', choices=['main', 'app', 'daemon', 'version', 'help'], help='target module')
+
+    args = main_parser.parse_args()
+
+
+    if args.module == 'app':
+        dync = dyncApp(args.config)
+        if args.command == 'start':
+            dync.start()
+    elif args.module == 'daemon':
+        dync = dyncDaemon(args.config, Platform.PIDFILE)
+        if args.command == 'start':
+            dync.start()
+        elif args.command == 'stop':
+            dync.stop()
+        elif args.command == 'restart':
+            dync.restart()
+    elif args.module == 'version':
+        print('{:}\n  version: {:}\n  author: {:}'.format(dyncBase.NAME, dyncBase.VERSION, 'FireSpike0'))
+    elif args.module == 'help':
+        if args.target == 'main':
+            main_parser.print_help()
+        elif args.target == 'app':
+            app_parser.print_help()
+        elif args.target == 'daemon':
+            daemon_parser.print_help()
+        elif args.target == 'version':
+            version_parser.print_help()
+        elif args.target == 'help':
+            help_parser.print_help()
