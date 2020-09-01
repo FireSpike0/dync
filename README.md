@@ -1,6 +1,8 @@
 # dync 1.0.0  
 ## Overview  
 A simple DynDNS client.  
+## Compatibility  
+dync is fully compatible with Linux and other Unix-like systems. Except for the daemon mode, it's also compatible with Windows.  
 ## Supported protocols  
 | Protocol name | Specification URL                       | Internal name | Maximal hosts |  
 | ------------- | --------------------------------------- | ------------- | -------------:|  
@@ -90,3 +92,19 @@ A short sample implementation to provide the current IP address over a socket ca
 ## Credits  
 Sander Marechal - [A simple unix/linux daemon in Python](https://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/)  
 ## Changelog  
+### Version 1.0.0  
+* Common  
+  * Added execution mode `app`  
+  * Added execution mode `daemon`  
+  * Added command-line interface  
+  * Added YAML configuration file  
+  * Added daemon PID file  
+  * Added logging mechanism  
+  * Added file logger  
+  * Added OS specific path selection  
+* Functionality  
+  * Added basic update mechanism  
+  * Added interface address provider  
+  * Added socket address provider  
+  * Added web address provider  
+  * Added DynDNS2 address updater  
