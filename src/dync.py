@@ -5,6 +5,9 @@ import re
 import time
 import sys
 import yaml
+import os
+import atexit
+import signal
 
 
 class AddressProvider(ABC):
@@ -98,3 +101,92 @@ class dyncApp(dyncBase):
 
     def restart(self):
         return
+
+
+# basic daemon, see
+#   https://web.archive.org/web/20200611115733/https://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python//
+# for details & credit
+class dyncDaemon(dyncBase):
+    def __init__(self, configfile, pidfile):
+        super().__init__(configfile)
+        self.pidfile = pidfile
+
+    def daemonize(self):
+        try:
+            pid = os.fork()
+            if pid > 0:
+                sys.exit(0)
+        except OSError:
+            sys.exit(1)
+
+        os.chdir('/')
+        os.setsid()
+        os.umask(0)
+
+        try:
+            pid = os.fork()
+            if pid > 0:
+                sys.exit(0)
+        except OSError:
+            sys.exit(1)
+
+        sys.stdout.flush()
+        sys.stderr.flush()
+        stdin = open(os.devnull, 'r')
+        stdout = open(os.devnull, 'a+')
+        stderr = open(os.devnull, 'a+')
+
+        os.dup2(stdin.fileno(), sys.stdin.fileno())
+        os.dup2(stdout.fileno(), sys.stdout.fileno())
+        os.dup2(stderr.fileno(), sys.stderr.fileno())
+
+        atexit.register(self.delpid)
+
+        pid = str(os.getpid())
+        with open(self.pidfile, 'w+') as f:
+            f.write(pid + '\n')
+
+    def delpid(self):
+        os.remove(self.pidfile)
+
+    def start(self):
+        try:
+            with open(self.pidfile, 'r') as f:
+                pid = int(f.read().strip())
+        except IOError:
+            pid = None
+
+        if pid:
+            sys.exit(1)
+
+        self.daemonize()
+        self.run()
+
+    def stop(self):
+        try:
+            with open(self.pidfile, 'r') as f:
+                pid = int(f.read().strip())
+        except IOError:
+            pid = None
+
+        if not pid:
+            return
+
+        if pid == os.getpid():
+            if os.path.exists(self.pidfile):
+                os.remove(self.pidfile)
+
+        try:
+            while True:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(0.1)
+        except OSError as err:
+            if str(err.args).find('No such process') > 0:
+                if os.path.exists(self.pidfile):
+                    os.remove(self.pidfile)
+            else:
+                sys.exit(1)
+
+    def restart(self):
+        self.stop()
+        self.start()
