@@ -8,6 +8,9 @@ import yaml
 import os
 import atexit
 import signal
+import netifaces as ni
+from ipaddress import ip_address, IPv6Address
+from urllib.parse import urlparse
 
 
 class AddressProvider(ABC):
@@ -21,6 +24,60 @@ class AddressProvider(ABC):
     @abstractmethod
     def get_ip(self):
         pass
+
+
+class InterfaceProvider(AddressProvider):
+    def __init__(self, interface, pattern, group=-2):
+        super().__init__(pattern, group)
+        self.interface = interface
+
+        self.retry = 3
+        self.attempt = 0
+        self.wait_time = 4
+
+        parse = urlparse(self.interface)
+        if parse.netloc == '':
+            sys.exit(1)
+        self.interface = parse.netloc
+
+        if self.interface not in ni.interfaces():
+            sys.exit(1)
+
+    def get_ip(self):
+        address_all = ni.ifaddresses(self.interface)
+        address_filtered = list()
+
+        if ni.AF_INET in address_all:
+            address_filtered.extend(address_all[ni.AF_INET])
+        if ni.AF_INET6 in address_all:
+            address_filtered.extend(address_all[ni.AF_INET6])
+
+        address_match = list()
+        for addr_dict in address_filtered:
+            addr = addr_dict['addr']
+            if '%' in addr:
+                addr = addr.split('%', 1)[0]
+            if isinstance(ip_address(addr), IPv6Address):
+                addr = ip_address(addr).exploded
+            match = re.search(self.pattern, addr)
+            if match:
+                if self.group == -2:
+                    address_match.append(match.string)
+                elif self.group == -1:
+                    address_match.append(match.group(0))
+                else:
+                    address_match.append(match.group(self.group))
+
+        if not address_match:
+            if self.attempt < self.retry:
+                self.attempt += 1
+                time.sleep(self.wait_time)
+                return self.get_ip()
+            sys.exit(1)
+
+        self.attempt = 0
+        address_match.sort()
+        return address_match
 
 
 class AddressUpdater(ABC):
@@ -42,7 +99,14 @@ class AddressUpdater(ABC):
 class DynDNSInstance(Thread):
     def __init__(self, iconfig):
         super().__init__(name=iconfig['uid'])
+
         self.provider = None
+        sect = iconfig['ip']
+        if sect['origin'].startswith('iface://'):
+            self.provider = InterfaceProvider(sect['origin'], sect['pattern'], sect['group'])
+        else:
+            sys.exit(1)
+
         self.updater = None
         self.mode = iconfig['mode']
 
