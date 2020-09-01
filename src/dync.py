@@ -84,3 +84,17 @@ class dyncBase(ABC):
         for instance in self.instances:
             instance.join()
         self.stop()
+
+
+class dyncApp(dyncBase):
+    def __init__(self, configfile):
+        super().__init__(configfile)
+
+    def start(self):
+        self.run()
+
+    def stop(self):
+        return
+
+    def restart(self):
+        return
