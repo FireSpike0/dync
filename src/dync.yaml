@@ -1,0 +1,14 @@
+instance:
+  - uid: default # unique name to identify this instance
+    ip:
+      origin: iface://eth0 # source to determine the ip address(es); may be an interface (iface://[name]), a web address (http://[address]) or a socket (sock://[ip])
+      pattern: regex # regex pattern to find the ip(s)
+      group: -2 # regex match-group containing the ip address(es); -1 means use entire match, -2 means use entire string
+    server:
+      protocol: dyndns2 # protocol to use for the update
+      address: http://example.com # server address used for the update process
+      domain: subdomain.example.com # domain(s) to update with the new address(es)
+      user: user # username
+      password: password # password
+      retry: -1 # amount of retries after server error; set to -1 for infinite retries
+    mode: 300 # refresh check interval (in seconds)
