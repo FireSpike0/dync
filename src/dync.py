@@ -4,6 +4,7 @@ from threading import Thread
 import re
 import time
 import sys
+import yaml
 
 
 class AddressProvider(ABC):
@@ -55,3 +56,31 @@ class DynDNSInstance(Thread):
                 else:
                     sys.exit(1)
             time.sleep(self.mode)
+
+
+class dyncBase(ABC):
+    NAME = 'dync'
+    VERSION = '0.0.0'
+    def __init__(self, configfile):
+        self.config = yaml.load(open(configfile, mode='r', encoding='utf-8'), Loader=yaml.FullLoader)
+        self.instances = list()
+
+    @abstractmethod
+    def start(self):
+        pass
+
+    @abstractmethod
+    def stop(self):
+        pass
+
+    @abstractmethod
+    def restart(self):
+        pass
+
+    def run(self):
+        for instance in self.config['instance']:
+            self.instances.append(DynDNSInstance(instance))
+            self.instances[-1].exec()
+        for instance in self.instances:
+            instance.join()
+        self.stop()

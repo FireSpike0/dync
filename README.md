@@ -4,6 +4,7 @@ A simple DynDNS client.
 ## Supported protocols  
 None  
 ## Configuration  
+dync uses PyYaml (see `dependencies.yml`) to parse the configuration file. All yaml specific syntax rules supported by PyYaml can be used here, provided the values are still evaluable for the program.  
 ### `instance:` [List]  
 This key contains the configuration for all DynDNS instances as a list. Each instance is represented as a single list item and uses the following keys: `uid`, `ip`, `server`, `mode`.  
 #### `uid:` [String]  
