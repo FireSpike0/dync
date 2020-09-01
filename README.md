@@ -1,4 +1,4 @@
-# dync 0.0.0  
+# dync 1.0.0  
 ## Overview  
 A simple DynDNS client.  
 ## Supported protocols  
