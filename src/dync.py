@@ -13,6 +13,7 @@ from ipaddress import ip_address, IPv4Address, IPv6Address
 from urllib.parse import urlparse
 import socket as sck
 import select
+import requests
 
 
 class AddressProvider(ABC):
@@ -189,6 +190,73 @@ class SocketProvider(AddressProvider):
         return address_match
 
 
+class WebProvider(AddressProvider):
+    def __init__(self, url, pattern, group=-2):
+        super().__init__(pattern, group)
+        self.url = url
+
+        self.retry = 3
+        self.attempt = 0
+        self.wait_time = 4
+
+        if urlparse(self.url).netloc == '':
+            sys.exit(1)
+
+    def get_ip(self):
+        try:
+            r = requests.get(self.url)
+            if r.status_code == 200:
+                data = re.split(r'[^0-9a-f:\.]+', r.text, flags=re.IGNORECASE)
+                address_filtered = list()
+                for addr in data:
+                    try:
+                        ip = ip_address(addr)
+                        if isinstance(ip, IPv4Address):
+                            pass
+                        elif isinstance(ip, IPv6Address):
+                            addr = ip.exploded
+                        else:
+                            raise ValueError('\'{}\' does not appear to be an IPv4 or IPv6 address'.format(addr))
+                    except ValueError:
+                        pass
+                    else:
+                        address_filtered.append(addr)
+
+                address_match = list()
+                for addr in address_filtered:
+                    match = re.search(self.pattern, addr)
+                    if match:
+                        if self.group == -2:
+                            address_match.append(match.string)
+                        elif self.group == -1:
+                            address_match.append(match.group(0))
+                        else:
+                            address_match.append(match.group(self.group))
+
+                if not address_match:
+                    if self.attempt < self.retry:
+                        self.attempt += 1
+                        time.sleep(self.wait_time)
+                        return self.get_ip()
+                    sys.exit(1)
+
+                self.attempt = 0
+                address_match.sort()
+                return address_match
+            else:
+                if self.attempt < self.retry:
+                    self.attempt += 1
+                    time.sleep(self.wait_time)
+                    return self.get_ip()
+                sys.exit(1)
+        except:
+            if self.attempt < self.retry:
+                self.attempt += 1
+                time.sleep(self.wait_time)
+                return self.get_ip()
+            sys.exit(1)
+
+
 class AddressUpdater(ABC):
     def __init__(self, address, domain, user, password, retry):
         self.address = address
@@ -215,6 +283,8 @@ class DynDNSInstance(Thread):
             self.provider = InterfaceProvider(sect['origin'], sect['pattern'], sect['group'])
         elif sect['origin'].startswith('sock://'):
             self.provider = SocketProvider(sect['origin'], sect['pattern'], sect['group'])
+        elif sect['origin'].startswith('http://') or sect['origin'].startswith('https://'):
+            self.provider = WebProvider(sect['origin'], sect['pattern'], sect['group'])
         else:
             sys.exit(1)
 
