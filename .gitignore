@@ -1,0 +1,11 @@
+# Visual Studio Code
+.vscode/
+
+# python venv
+env/
+
+# build / deploy output
+out/
+
+# cache files
+src/__pycache__/
