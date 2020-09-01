@@ -42,6 +42,10 @@ This key sets the amount of retries after a server error occurred.
 If the value is set to `-1`, infinite retries will be executed.  
 #### `mode:` [Integer]  
 This key currently can only be an integer and defines the wait time in seconds until the local IP address will be checked again for an update.  
+## Notes  
+### SocketProvider implementation  
+A short sample implementation to provide the current IP address over a socket can be found under `./sample/socket_provider.py`.  
+**Important:** Make sure to bind the server-side socket to the client-side configured address, especially when using IPv6 connectivity. Otherwise, the client may ignore the received addresses, because they were seemingly sent from another machine even if that's not the case.  
 ## Credits  
 Sander Marechal - [A simple unix/linux daemon in Python](https://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/)  
 ## Changelog  

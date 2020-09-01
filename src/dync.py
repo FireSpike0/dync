@@ -9,8 +9,10 @@ import os
 import atexit
 import signal
 import netifaces as ni
-from ipaddress import ip_address, IPv6Address
+from ipaddress import ip_address, IPv4Address, IPv6Address
 from urllib.parse import urlparse
+import socket as sck
+import select
 
 
 class AddressProvider(ABC):
@@ -80,6 +82,113 @@ class InterfaceProvider(AddressProvider):
         return address_match
 
 
+class SocketProvider(AddressProvider):
+    def __init__(self, address, pattern, group=-2):
+        super().__init__(pattern, group)
+
+        address = address.split('://', 1)[1]
+        match = re.search(r':(\d+)(?:\/|)$', address)
+        if not match:
+            sys.exit(1)
+        self.address = address[:-len(match.group(0))].strip('[ ]')
+        self.port = int(match.group(1))
+
+        self.retry = 3
+        self.attempt = 0
+        self.wait_time = 4
+
+        try:
+            if not isinstance(ip_address(self.address), (IPv4Address, IPv6Address)):
+                sys.exit(1)
+        except:
+            sys.exit(1)
+
+        if self.port < 0 or self.port > 65535:
+            sys.exit(1)
+
+    def get_ip(self):
+        if isinstance(ip_address(self.address), IPv4Address):
+            addr_family = sck.AF_INET
+        elif isinstance(ip_address(self.address), IPv6Address):
+            addr_family = sck.AF_INET6
+
+        try:
+            s = sck.socket(addr_family, sck.SOCK_DGRAM)
+            s.bind(('', self.port))
+            s.sendto('ip-request\n'.encode('utf-8'), (self.address, self.port))
+            wait = time.monotonic()
+            while True:
+                if not select.select([s], [], [], self.wait_time)[0]:
+                    s.close()
+                    if self.attempt < self.retry:
+                        self.attempt += 1
+                        time.sleep(self.wait_time)
+                        return self.get_ip()
+                    sys.exit(1)
+                data, addr_sender = s.recvfrom(256)
+                if ip_address(self.address) == ip_address(addr_sender[0].strip('[ ]')):
+                    break
+                elif time.monotonic() - wait > self.wait_time:
+                    s.close()
+                    if self.attempt < self.retry:
+                        self.attempt += 1
+                        time.sleep(self.wait_time)
+                        return self.get_ip()
+                    sys.exit(1)
+            s.close()
+        except OSError:
+            if self.attempt < self.retry:
+                self.attempt += 1
+                time.sleep(self.wait_time)
+                return self.get_ip()
+            sys.exit(1)
+
+        if not data:
+            if self.attempt < self.retry:
+                self.attempt += 1
+                time.sleep(self.wait_time)
+                return self.get_ip()
+            sys.exit(1)
+
+        data = re.split(r'[^0-9a-f:\.]+', data.decode('utf-8'), flags=re.IGNORECASE)
+        address_filtered = list()
+        for addr in data:
+            try:
+                ip = ip_address(addr)
+                if isinstance(ip, IPv4Address):
+                    pass
+                elif isinstance(ip, IPv6Address):
+                    addr = ip.exploded
+                else:
+                    raise ValueError('\'{}\' does not appear to be an IPv4 or IPv6 address'.format(addr))
+            except ValueError:
+                pass
+            else:
+                address_filtered.append(addr)
+
+        address_match = list()
+        for addr in address_filtered:
+            match = re.search(self.pattern, addr)
+            if match:
+                if self.group == -2:
+                    address_match.append(match.string)
+                elif self.group == -1:
+                    address_match.append(match.group(0))
+                else:
+                    address_match.append(match.group(self.group))
+
+        if not address_match:
+            if self.attempt < self.retry:
+                self.attempt += 1
+                time.sleep(self.wait_time)
+                return self.get_ip()
+            sys.exit(1)
+
+        self.attempt = 0
+        address_match.sort()
+        return address_match
+
+
 class AddressUpdater(ABC):
     def __init__(self, address, domain, user, password, retry):
         self.address = address
@@ -104,6 +213,8 @@ class DynDNSInstance(Thread):
         sect = iconfig['ip']
         if sect['origin'].startswith('iface://'):
             self.provider = InterfaceProvider(sect['origin'], sect['pattern'], sect['group'])
+        elif sect['origin'].startswith('sock://'):
+            self.provider = SocketProvider(sect['origin'], sect['pattern'], sect['group'])
         else:
             sys.exit(1)
 
