@@ -2,7 +2,9 @@
 ## Overview  
 A simple DynDNS client.  
 ## Supported protocols  
-None  
+| Protocol name | Specification URL                       | Internal name | Maximal hosts |  
+| ------------- | --------------------------------------- | ------------- | -------------:|  
+| DynDNS2       | https://help.dyn.com/remote-access-api/ | dyndns2       | 20            |  
 ## Configuration  
 dync uses PyYaml (see `dependencies.yml`) to parse the configuration file. All yaml specific syntax rules supported by PyYaml can be used here, provided the values are still evaluable for the program.  
 ### `instance:` [List]  

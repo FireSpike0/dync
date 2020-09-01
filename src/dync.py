@@ -273,6 +273,99 @@ class AddressUpdater(ABC):
         pass
 
 
+class DynDNS2Updater(AddressUpdater):
+    def __init__(self, address, domain, user, password, retry):
+        super().__init__(address, domain, user, password, retry)
+        self.ua = '{c:} - {n:} - {v:}'.format(c='FireSpike0', n=dyncBase.NAME, v=dyncBase.VERSION)
+
+        self.attempt = 0
+        self.wait_time = 1800
+
+        if not isinstance(self.domain, list):
+            self.domain = list(map(str.strip, self.domain.split(',')))
+
+        if len(self.domain) < 1 or len(self.domain) > 20:
+            sys.exit(1)
+
+        parse = urlparse(self.address)
+        if parse.scheme.lower() not in ['http', 'https'] or parse.netloc == '':
+            sys.exit(1)
+
+    def send_ip(self, ip):
+        try:
+            r = requests.get(
+                self.address,
+                headers={
+                    'User-Agent': self.ua
+                },
+                auth=requests.auth.HTTPBasicAuth(self.user, self.password),
+                params={
+                    'hostname': ','.join(self.domain),
+                    'myip': ','.join(ip)
+                }
+            )
+        except:
+            if self.retry == -1 or (self.retry != -1 and self.attempt < self.retry):
+                self.attempt += 1
+                time.sleep(self.wait_time / 10)
+                return self.send_ip(ip)
+            return False
+
+        update_result = list()
+        domain_index = 0
+        for line in r.text.split('\n'):
+            line = line.strip()
+            if line == '':
+                continue
+            elif line.startswith('good') and (not line.endswith('127.0.0.1') or ','.join(ip) == '127.0.0.1'):
+                update_result.append(True)
+                domain_index += 1
+            elif line.startswith('nochg'):
+                update_result.append(True)
+                domain_index += 1
+            elif line.startswith('notfqdn') and len(self.domain) >= 1:
+                update_result.append(False)
+                domain_index += 1
+            elif line.startswith('notfqdn') and len(self.domain) < 1:
+                update_result.append(False)
+            elif line.startswith('nohost'):
+                update_result.append(False)
+                domain_index += 1
+            elif line.startswith('numhost'):
+                update_result.append(False)
+                domain_index += 1
+            elif line.startswith('abuse'):
+                update_result.append(False)
+                domain_index += 1
+            elif line.startswith('good 127.0.0.1') and ','.join(ip) != '127.0.0.1':
+                update_result.append(False)
+                domain_index += 1
+            elif line.startswith('badagent'):
+                update_result.append(False)
+            elif line.startswith('badauth'):
+                update_result.append(False)
+            elif line.startswith('badsys'):
+                update_result.append(False)
+            elif line.startswith('!donator'):
+                update_result.append(False)
+            elif line.startswith('dnserr'):
+                if self.retry == -1 or (self.retry != -1 and self.attempt < self.retry):
+                    self.attempt += 1
+                    time.sleep(self.wait_time)
+                    return self.send_ip(ip)
+                update_result.append(False)
+            elif line.startswith('911'):
+                if self.retry == -1 or (self.retry != -1 and self.attempt < self.retry):
+                    self.attempt += 1
+                    time.sleep(self.wait_time)
+                    return self.send_ip(ip)
+                update_result.append(False)
+            else:
+                update_result.append(False)
+
+        return all(update_result)
+
+
 class DynDNSInstance(Thread):
     def __init__(self, iconfig):
         super().__init__(name=iconfig['uid'])
@@ -289,6 +382,12 @@ class DynDNSInstance(Thread):
             sys.exit(1)
 
         self.updater = None
+        sect = iconfig['server']
+        if sect['protocol'].strip().lower() == 'dyndns2':
+            self.updater = DynDNS2Updater(sect['address'], sect['domain'], sect['user'], sect['password'], sect['retry'])
+        else:
+            sys.exit(1)
+
         self.mode = iconfig['mode']
 
     def exec(self):
