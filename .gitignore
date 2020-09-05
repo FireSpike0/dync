@@ -9,3 +9,6 @@ out/
 
 # cache files
 src/__pycache__/
+
+# notes, plans, test files
+notebook/
