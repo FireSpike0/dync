@@ -558,7 +558,10 @@ class dyncBase(ABC):
     VERSION = '1.0.0'
     def __init__(self, configfile):
         logging.info(LogMessage.LOADING_CONFIGURATION, configfile)
-        self.config = yaml.load(open(configfile, mode='r', encoding='utf-8'), Loader=yaml.FullLoader)
+        if int(yaml.__version__.split('.')[0]) >= 5:
+            self.config = yaml.load(open(configfile, mode='r', encoding='utf-8'), Loader=yaml.FullLoader)
+        else:
+            self.config = yaml.load(open(configfile, mode='r', encoding='utf-8'))
         self.instances = list()
 
     @abstractmethod

@@ -3,6 +3,7 @@
 A simple DynDNS client.  
 ## Compatibility  
 dync is fully compatible with Linux and other Unix-like systems. Except for the daemon mode, it's also compatible with Windows.  
+Both versions of PyYaml's `load` function are supported. This means that dync is compatible with the new one with the `Loader` parameter as well as with the old one without it.  
 ## Supported protocols  
 | Protocol name | Specification URL                       | Internal name | Maximal hosts |  
 | ------------- | --------------------------------------- | ------------- | -------------:|  
